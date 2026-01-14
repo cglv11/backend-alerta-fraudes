@@ -4,6 +4,7 @@ import { AppDataSource } from './database/data-source'
 import { PostgresTransactionRepository } from './repositories/PostgresTransactionRepository'
 import { PostgresFraudDetectionRepository } from './repositories/PostgresFraudDetectionRepository'
 import { CreateTransaction } from '../application/use-cases/CreateTransaction'
+import { GetUsers } from '../application/use-cases/GetUsers'
 import { GetUserRiskProfile } from '../application/use-cases/GetUserRiskProfile'
 import { TransactionController } from '../interfaces/controllers/TransactionController'
 import { FraudDetectionController } from '../interfaces/controllers/FraudDetectionController'
@@ -25,10 +26,14 @@ async function bootstrap() {
 
   // Use cases
   const createTransaction = new CreateTransaction(transactionRepository)
+  const getUsersUseCase = new GetUsers(transactionRepository) // Changed variable name
   const getUserRiskProfile = new GetUserRiskProfile(fraudDetectionRepository)
 
   // Controllers
-  const transactionController = new TransactionController(createTransaction)
+  const transactionController = new TransactionController(
+    createTransaction,
+    getUsersUseCase // Pass with new variable name
+  )
   const fraudDetectionController = new FraudDetectionController(
     getUserRiskProfile
   )
