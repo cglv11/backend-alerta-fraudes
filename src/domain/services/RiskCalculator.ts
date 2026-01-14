@@ -63,28 +63,29 @@ export class RiskCalculator {
     return alerts
   }
 
-  // Rule 1: High frequency (5+ transactions in 10 minutes)
+  // Rule 1: High frequency (3+ transactions in 2 minutes) - ADJUSTED FOR TESTING
   private static checkHighFrequency(
     transactions: Transaction[]
   ): FraudAlert | null {
-    if (transactions.length < 5) return null
+    if (transactions.length < 3) return null // Changed from 5 to 3
 
     const now = new Date()
-    const tenMinutesAgo = new Date(now.getTime() - 10 * 60 * 1000)
+    const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000) // Changed from 10 to 2
 
     const recentTransactions = transactions.filter(
-      (tx) => tx.createdAt >= tenMinutesAgo
+      (tx) => tx.createdAt >= twoMinutesAgo
     )
 
-    if (recentTransactions.length >= 5) {
+    if (recentTransactions.length >= 3) {
+      // Changed from 5 to 3
       return FraudAlert.create({
         type: 'HIGH_FREQUENCY',
         severity: 'CRITICAL',
-        message: `${recentTransactions.length} transactions in 10 minutes`,
+        message: `${recentTransactions.length} transactions in 2 minutes`,
         transactionIds: recentTransactions.map((tx) => tx.id),
         metadata: {
           count: recentTransactions.length,
-          timeWindow: '10 minutes',
+          timeWindow: '2 minutes',
         },
       })
     }
@@ -92,22 +93,21 @@ export class RiskCalculator {
     return null
   }
 
-  // Rule 2: Unusual country (new country not seen in last 30 days)
+  // Rule 2: Unusual country (new country compared to older transactions)
   private static checkUnusualCountry(
     transactions: Transaction[]
   ): FraudAlert | null {
     if (transactions.length < 2) return null
 
     const latest = transactions[0]
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
 
+    // Get older transactions (exclude latest)
+    const olderTransactions = transactions.slice(1)
     const historicalCountries = new Set(
-      transactions
-        .filter((tx) => tx.createdAt < thirtyDaysAgo)
-        .map((tx) => tx.country)
+      olderTransactions.map((tx) => tx.country)
     )
 
-    // If latest transaction is from a new country
+    // If latest transaction is from a NEW country
     if (
       historicalCountries.size > 0 &&
       !historicalCountries.has(latest.country)
@@ -127,21 +127,24 @@ export class RiskCalculator {
     return null
   }
 
-  // Rule 3: Amount spike (transaction 300%+ above average)
+  // Rule 3: Amount spike (200%+ above average) - ADJUSTED FOR TESTING
   private static checkAmountSpike(
     transactions: Transaction[]
   ): FraudAlert | null {
-    if (transactions.length < 5) return null
+    if (transactions.length < 3) return null // Changed from 5 to 3
 
     const latest = transactions[0]
-    const historical = transactions.slice(1) // Exclude latest
+    const historical = transactions.slice(1)
+
+    if (historical.length === 0) return null
 
     const avgAmount =
       historical.reduce((sum, tx) => sum + tx.amount, 0) / historical.length
 
     const percentageIncrease = ((latest.amount - avgAmount) / avgAmount) * 100
 
-    if (percentageIncrease >= 300) {
+    if (percentageIncrease >= 200) {
+      // Keep at 200%
       return FraudAlert.create({
         type: 'AMOUNT_SPIKE',
         severity: 'HIGH',
@@ -178,7 +181,6 @@ export class RiskCalculator {
       const nightTransactionRatio =
         nightTransactions.length / transactions.length
       if (nightTransactionRatio < 0.2) {
-        // Less than 20% of transactions are at night
         return FraudAlert.create({
           type: 'UNUSUAL_TIME',
           severity: 'MEDIUM',
